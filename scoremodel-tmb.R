@@ -1,0 +1,124 @@
+set.seed(0)
+library(TMB)
+source("util.R")
+
+
+
+#######
+### DATA
+
+teams <- read.csv("data/teams.csv", header=TRUE)
+scores <- read.csv("data/scores.csv", header=TRUE)
+
+# number of teams & matches
+n <- length(teams$key)
+m <- n*(n-1)
+
+indexes <- as.matrix(scores[1:2]) +1 # +1 shifts from 0-indexing to 1-indexing
+default <- 0 # NA would break TMB
+
+home_scores <- matrix(default, ncol=n, nrow=n)
+home_scores[indexes] <- scores[TRUE, 3] # selects the third col; aka scores[, 3]
+
+away_scores <- matrix(default, ncol=n, nrow=n)
+away_scores[indexes] <- scores[TRUE, 4]
+
+
+
+#######
+### PARAMETERS
+
+mu <- sum(home_scores + away_scores, na.rm=TRUE) / (2*m)
+
+Sigma <- matrix(c(1,0.2,0.2,2), ncol=2)
+
+params <- decompose_cov(Sigma)
+theta <- params$theta
+sds <- params$sds
+
+
+# Create datalist
+data <- list(
+    HOME = home_scores,
+    AWAY = away_scores
+)
+
+
+# Define variables & parameters
+parameters <- list(
+    alpha = rep(0, n),
+    beta  = rep(0, n),
+    gamma = 1,
+    mu    = log(mu),
+    theta = theta,
+    log_sds = log(sds)
+)
+
+
+
+#######
+### FUNCTION
+
+# Compile and link the template
+. <- TMB::compile("models-tmb/poisson_tmb.cpp") # Only needed once
+dyn.load(TMB::dynlib("models-tmb/poisson_tmb"))
+
+
+# Make Automatic Differentiation Function
+obj <- TMB::MakeADFun(data, parameters, random=c("alpha", "beta"), DLL="poisson_tmb", silent=TRUE)
+#obj$fn()
+
+
+# NonLinear MINimization subject to Box constraints
+# https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/nlminb
+# deprecated, but alternatives are worse:
+# nlm(obj$fn, obj$par), optim(obj$par, obj$fn, obj$gr)
+system.time(opt <- nlminb(obj$par, obj$fn, obj$gr))
+
+#######
+### RESULT
+
+# https://www.rdocumentation.org/packages/TMB/versions/1.7.16/topics/sdreport
+report <-TMB::sdreport(obj)
+
+
+# :: NOTE
+# There are a lot of ways to obtain the results; the documentation
+# is not clear on which is appropriate.
+
+# opt$par == rep$par.fixed
+# obj$report()
+
+# obj$env$last.par
+# obj$env$last.par.best
+# obj$env$random
+
+# attributes(rep)
+# attributes(obj[names(obj) == "report"])
+
+# unlog(groupby(report$par.fixed))
+# groupby(report$par.random)
+
+result <- unlog(obj$env$parList())
+
+result$cov <- recompose_cov(result$theta, result$sds)
+# result$cov
+
+alpha <- result$alpha
+beta  <- result$beta
+gamma <- result$gamma
+mu    <- result$mu
+
+ratings <- rep(0, n)
+
+for (i in 1:n) for (j in 1:n) {
+    if (i==j) next;
+
+    ratings[i] = ratings[i] + exp(alpha[i] - beta[j] + gamma + mu)
+    ratings[j] = ratings[j] + exp(alpha[j] - beta[i] - gamma + mu)
+}
+
+matches_by_team <- 2*(n-1)
+ratings <- ratings / matches_by_team
+
+for (team in teams$team[order(ratings, decreasing=TRUE)]) print(team)
