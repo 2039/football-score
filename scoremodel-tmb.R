@@ -11,7 +11,6 @@ source("util.R")
 teams <- read.csv("data/teams.csv", header=TRUE, encoding="UTF-8")
 scores <- read.csv("data/scores.csv", header=TRUE, encoding="UTF-8")
 
-teams
 
 # number of teams & matches
 n <- length(teams$key)
@@ -104,50 +103,20 @@ report <-TMB::sdreport(obj)
 
 result <- unlog(obj$env$parList())
 
-result$cov <- recompose_cov(result$theta, result$sds)
+# result$cov <- recompose_cov(result$theta, result$sds)
 # result$cov
 
-alpha <- result$alpha
-beta  <- result$beta
-gamma <- result$gamma
-mu    <- result$mu
 
-# Calculate rankings by score
-ratings <- rep(0, n)
+# Gets the values matching the function signature
+values <- result[formalArgs(calc_ratings)]
 
-for (i in 1:n) for (j in 1:n) {
-    if (i==j) next;
 
-    ratings[i] = ratings[i] + exp(alpha[i] - beta[j] + gamma + mu)
-    ratings[j] = ratings[j] + exp(alpha[j] - beta[i] - gamma + mu)
-}
-
-matches_by_team <- 2*(n-1)
-ratings <- ratings / matches_by_team
-
+# Sort teams by score rating
+ratings <- do.call(calc_ratings, values)
 for (team in teams$name[order(ratings, decreasing=TRUE)]) print(team)
 
-# Calculate rankings by point system
-points <- rep(0, n)
 
-for (i in 1:n) for (j in 1:n) {
-    if (i==j) next;
-
-    home_lambda = exp(alpha[i] - beta[j] + gamma + mu)
-    away_lambda = exp(alpha[j] - beta[i] - gamma + mu)
-
-
-    tie <- skellam::dskellam(0, home_lambda, away_lambda)
-    away_win <- skellam::pskellam(-1, home_lambda, away_lambda)
-    home_win <- skellam::pskellam(-1, away_lambda, home_lambda)
-
-    points[i] = points[i] + 0*away_win + 1*tie + 3*home_win
-    points[j] = points[j] + 3*away_win + 1*tie + 0*home_win
-}
-
-points
-
-#for (team in teams$team[order(points)]) print(team)
-
+# Sort teams by point system
+points <- do.call(calc_points, values)
 for (point_index in order(points, decreasing=TRUE))
     print(paste(teams$name[point_index], points[point_index]))

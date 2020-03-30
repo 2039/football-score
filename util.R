@@ -3,6 +3,10 @@ library(Matrix)
 library(expm, warn.conflicts = FALSE, quietly = TRUE)
 
 
+
+#' Returns the package name the object is contained in
+where <- function(obj) environmentName(environment(obj))
+
 #' Returns the diagonal part of a matrix as a matrix.
 #' ?!! improper signature/overloading
 ddiag <- function(M) diag(diag(M))
@@ -16,6 +20,8 @@ chol <- function(M, lower=TRUE) {
 #' Adds an alias for matrix inverse, as `solve` is an odd name
 #' ?!! misnomer
 inv  <- solve
+
+
 
 decompose_cov <- function(Sigma) {
     #' @description Rebuild covariance matrix from theta and sds
@@ -42,6 +48,8 @@ decompose_cov <- function(Sigma) {
     params
 }
 
+
+
 recompose_cov <- function(theta, sds) {
     #' @description Rebuild covariance matrix from theta and sds
     #'
@@ -67,10 +75,11 @@ recompose_cov <- function(theta, sds) {
 }
 
 
+
 groupby <- function(x) {
     #' @description Group elements in a named vector by name
     #'
-    #' @param c() with names():
+    #' @param x c() with names():
     #'     A named vector
     #'
     #' @return list(character = c())
@@ -86,6 +95,7 @@ groupby <- function(x) {
 
     return(result)
 }
+
 
 
 unlog <- function(l) {
@@ -107,4 +117,130 @@ unlog <- function(l) {
     }
 
     return(l)
+}
+
+
+
+unindex <- function(v) {
+    #' @description Removes index part of vector names
+    #'
+    #' @param v c():
+    #'     A named vector with some names ending with [.*]
+    #'
+    #' @return list():
+    #'     A named vector with no names ending with [.*]
+
+    nnames <- lapply(names(v), function(s) strsplit(s, "\\[")[[1]][1])
+
+    names(v) <- nnames
+
+    return(v)
+}
+
+
+
+llambdas <- function(alpha, beta, gamma, mu) {
+    #' @description Calculates lambda for each match given the team parameters
+    #'
+    #' @param alpha numeric
+    #' @param beta numeric
+    #' @param gamma numeric
+    #' @param mu numeric
+
+    n <- length(alpha)
+
+    loglambdas <- array(dim=c(n, n, 2))
+
+    for (i in 1:n) for (j in 1:n) {
+        if (i==j) next;
+
+        loglambdas[i, j, 1] = alpha[i] - beta[j] + gamma + mu
+        loglambdas[i, j, 2] = alpha[j] - beta[i] - gamma + mu
+    }
+
+    return(loglambdas)
+}
+
+
+
+calc_ratings <- function(alpha, beta, gamma, mu) {
+    #' @description calculates the rating for each team as the average lambda
+    #'     score of each match the team plays in
+    #'
+    #' @param alpha numeric
+    #' @param beta numeric
+    #' @param gamma numeric
+    #' @param mu numeric
+
+    lambdas <- exp(llambdas(alpha, beta, gamma, mu))
+
+    # match first axis to team instead of match
+    lambdas[T,T,2] <- t(lambdas[T,T,2])
+
+    ratings <- apply(lambdas, 1, function(x) mean(x, na.rm=TRUE))
+
+    ### procedural version
+
+    # n <- length(alpha)
+
+    # # Calculate rankings by point system
+    # ratings <- rep(0, n)
+
+    # for (i in 1:n) for (j in 1:n) {
+    #     if (i==j) next;
+
+    #     ratings[i] = ratings[i] + exp(alpha[i] - beta[j] + gamma + mu)
+    #     ratings[j] = ratings[j] + exp(alpha[j] - beta[i] - gamma + mu)
+    # }
+
+    # matches_by_team <- 2*(n-1)
+    # ratings <- ratings / matches_by_team
+
+    return(ratings)
+}
+
+
+
+calc_points <- function(alpha, beta, gamma, mu) {
+    #' @description calculates the points for each team as given by
+    #'     the points system
+    #'
+    #' @param alpha numeric
+    #' @param beta numeric
+    #' @param gamma numeric
+    #' @param mu numeric
+
+    lambdas <- exp(llambdas(alpha, beta, gamma, mu))
+
+    ties <- apply(lambdas, c(1,2), function(x) skellam::dskellam(0, x[1], x[2]))
+    away <- apply(lambdas, c(1,2), function(x) skellam::pskellam(-1,x[1], x[2]))
+    home <- apply(lambdas, c(1,2), function(x) skellam::pskellam(-1,x[2], x[1]))
+
+    # score at home stadium plus score at opponent stadium
+    X <- (0*away + 1*ties + 3*home) + (3*t(away) + 1*t(ties) + 0*t(home))
+
+    points <- apply(X, 1, function(x) sum(x, na.rm=TRUE))
+
+    ### procedural version
+
+    # n <- length(alpha)
+
+    # # Calculate rankings by point system
+    # points <- rep(0, n)
+
+    # for (i in 1:n) for (j in 1:n) {
+    #     if (i==j) next;
+
+    #     home_lambda = exp(alpha[i] - beta[j] + gamma + mu)
+    #     away_lambda = exp(alpha[j] - beta[i] - gamma + mu)
+
+    #     tie <- skellam::dskellam(0, home_lambda, away_lambda)
+    #     away_win <- skellam::pskellam(-1, home_lambda, away_lambda)
+    #     home_win <- skellam::pskellam(-1, away_lambda, home_lambda)
+
+    #     points[i] = points[i] + 0*away_win + 1*tie + 3*home_win
+    #     points[j] = points[j] + 3*away_win + 1*tie + 0*home_win
+    # }
+
+    return(points)
 }
