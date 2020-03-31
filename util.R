@@ -1,6 +1,7 @@
 library(Matrix)
 # ?!! cannot silence library function
 library(expm, warn.conflicts = FALSE, quietly = TRUE)
+library(skellam)
 
 exports = c(
     "where", "ddiag", "chol", "inv",
