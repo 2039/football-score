@@ -2,27 +2,39 @@ library(Matrix)
 # ?!! cannot silence library function
 library(expm, warn.conflicts = FALSE, quietly = TRUE)
 
+exports = c(
+    "where", "ddiag", "chol", "inv",
+    "decompose_cov", "recompose_cov", "groupby",
+    "unlog", "unindex", "llambdas", "calc_ratings",
+    "calc_points"
+)
 
+foo <- function(x) {2+x}
 
 #' Returns the package name the object is contained in
+#' @export
 where <- function(obj) environmentName(environment(obj))
 
 #' Returns the diagonal part of a matrix as a matrix.
 #' ?!! improper signature/overloading
+#' @export
 ddiag <- function(M) diag(diag(M))
 
 #' Adds option to return lower triangular cholesky matrix
 #' ?!! upper triangular (hardcoded)
+#' @export
 chol <- function(M, lower=TRUE) {
     if(lower) t(base::chol(M)) else base::chol(M)
 }
 
 #' Adds an alias for matrix inverse, as `solve` is an odd name
 #' ?!! misnomer
+#' @export
 inv  <- solve
 
 
 
+#' @export
 decompose_cov <- function(Sigma) {
     #' @description Rebuild covariance matrix from theta and sds
     #'
@@ -50,6 +62,7 @@ decompose_cov <- function(Sigma) {
 
 
 
+#' @export
 recompose_cov <- function(theta, sds) {
     #' @description Rebuild covariance matrix from theta and sds
     #'
@@ -76,6 +89,7 @@ recompose_cov <- function(theta, sds) {
 
 
 
+#' @export
 groupby <- function(x) {
     #' @description Group elements in a named vector by name
     #'
@@ -98,6 +112,7 @@ groupby <- function(x) {
 
 
 
+#' @export
 unlog <- function(l) {
     #' @description Exponentiates logarithmed values with key starting with `log_`
     #' and remove the `log_` part of the key.
@@ -121,6 +136,7 @@ unlog <- function(l) {
 
 
 
+#' @export
 unindex <- function(v) {
     #' @description Removes index part of vector names
     #'
@@ -139,6 +155,7 @@ unindex <- function(v) {
 
 
 
+#' @export
 llambdas <- function(alpha, beta, gamma, mu) {
     #' @description Calculates lambda for each match given the team parameters
     #'
@@ -163,6 +180,7 @@ llambdas <- function(alpha, beta, gamma, mu) {
 
 
 
+#' @export
 calc_ratings <- function(alpha, beta, gamma, mu) {
     #' @description calculates the rating for each team as the average lambda
     #'     score of each match the team plays in
@@ -201,6 +219,7 @@ calc_ratings <- function(alpha, beta, gamma, mu) {
 
 
 
+#' @export
 calc_points <- function(alpha, beta, gamma, mu) {
     #' @description calculates the points for each team as given by
     #'     the points system
@@ -212,9 +231,10 @@ calc_points <- function(alpha, beta, gamma, mu) {
 
     lambdas <- exp(llambdas(alpha, beta, gamma, mu))
 
-    ties <- apply(lambdas, c(1,2), function(x) skellam::dskellam(0, x[1], x[2]))
-    away <- apply(lambdas, c(1,2), function(x) skellam::pskellam(-1,x[1], x[2]))
-    home <- apply(lambdas, c(1,2), function(x) skellam::pskellam(-1,x[2], x[1]))
+    # skellam doesn't like NaN values, which is fine
+    ties <- suppressWarnings(apply(lambdas, c(1,2), function(x) skellam::dskellam(0, x[1], x[2])))
+    away <- suppressWarnings(apply(lambdas, c(1,2), function(x) skellam::pskellam(-1,x[1], x[2])))
+    home <- suppressWarnings(apply(lambdas, c(1,2), function(x) skellam::pskellam(-1,x[2], x[1])))
 
     # score at home stadium plus score at opponent stadium
     X <- (0*away + 1*ties + 3*home) + (3*t(away) + 1*t(ties) + 0*t(home))

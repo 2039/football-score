@@ -1,28 +1,24 @@
 set.seed(0)
 library(rstan)
-source("util.R")
 
 # base::options(mc.cores = parallel::detectCores())
 
 
+# hacky way to create a virtual package
+source("import.R")
+import(from="util.R")
 
-teams <- read.csv("data/teams.csv", header=TRUE)
-scores <- read.csv("data/scores.csv", header=TRUE)
+
+#######
+### DATA
+
+data <- c("teams","n", "m", "home_scores", "away_scores")
+import(data, from="data.R")
 
 
-# number of teams & matches
-n <- length(teams$key)
-m <- n*(n-1)
 
-indexes <- as.matrix(scores[1:2]) +1 # +1 shifts from 0-indexing to 1-indexing
-default <- 0 # NA would break TMB
-
-home_scores <- matrix(default, ncol=n, nrow=n)
-home_scores[indexes] <- scores[TRUE, 3] # selects the third col; aka scores[, 3]
-
-away_scores <- matrix(default, ncol=n, nrow=n)
-away_scores[indexes] <- scores[TRUE, 4]
-
+#######
+### PARAMETERS
 
 mu <- sum(home_scores + away_scores, na.rm=TRUE) / (2*m)
 
@@ -51,28 +47,36 @@ parameters <- list(
 )
 
 
+
+#######
+### OBJECTIVE FUNCTION
+
 fit <- rstan::stan(file="models-stan/scoremodel.stan", data=data)
 
+
+
+#######
+### RESULT
 
 pars <- c("alpha", "beta", "gamma", "mu", "Sigma")
 report <- summary(fit, pars = pars)$summary[TRUE, "mean"]
 
-result <- groupby(unindex(report))
+result <- util::groupby(util::unindex(report))
 
 result
 # graphics::pairs(fit)
 
 
 # Gets the values matching the function signature
-values <- result[formalArgs(calc_ratings)]
+values <- result[formalArgs(util::calc_ratings)]
 
 
 # Sort teams by score rating
-ratings <- do.call(calc_ratings, values)
+ratings <- do.call(util::calc_ratings, values)
 for (team in teams$name[order(ratings, decreasing=TRUE)]) print(team)
 
 
 # Sort teams by point system
-points <- do.call(calc_points, values)
+points <- do.call(util::calc_points, values)
 for (point_index in order(points, decreasing=TRUE))
     print(paste(teams$name[point_index], points[point_index]))

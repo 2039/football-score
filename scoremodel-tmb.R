@@ -1,29 +1,17 @@
 set.seed(0)
 library(TMB)
 library(skellam)
-source("util.R")
 
+# hacky way to create a virtual package
+source("import.R")
+import(from="util.R")
 
 
 #######
 ### DATA
 
-teams <- read.csv("data/teams.csv", header=TRUE, encoding="UTF-8")
-scores <- read.csv("data/scores.csv", header=TRUE, encoding="UTF-8")
-
-
-# number of teams & matches
-n <- length(teams$key)
-m <- n*(n-1)
-
-indexes <- as.matrix(scores[1:2]) +1 # +1 shifts from 0-indexing to 1-indexing
-default <- 0 # NA would break TMB
-
-home_scores <- matrix(default, ncol=n, nrow=n)
-home_scores[indexes] <- scores[TRUE, 3] # selects the third col; aka scores[, 3]
-
-away_scores <- matrix(default, ncol=n, nrow=n)
-away_scores[indexes] <- scores[TRUE, 4]
+data <- c("teams","n", "m", "home_scores", "away_scores")
+import(data, from="data.R")
 
 
 
@@ -34,7 +22,7 @@ mu <- sum(home_scores + away_scores, na.rm=TRUE) / (2*m)
 
 Sigma <- matrix(c(1,0.2,0.2,2), ncol=2)
 
-params <- decompose_cov(Sigma)
+params <- util::decompose_cov(Sigma)
 theta <- params$theta
 sds <- params$sds
 
@@ -59,7 +47,7 @@ parameters <- list(
 
 
 #######
-### FUNCTION
+### OBJECTIVE FUNCTION
 
 # Compile and link the template
 . <- TMB::compile("models-tmb/poisson_tmb.cpp") # Only needed once
@@ -76,6 +64,8 @@ obj <- TMB::MakeADFun(data, parameters, random=c("alpha", "beta"), DLL="poisson_
 # deprecated, but alternatives are worse:
 # nlm(obj$fn, obj$par), optim(obj$par, obj$fn, obj$gr)
 system.time(opt <- nlminb(obj$par, obj$fn, obj$gr))
+
+
 
 #######
 ### RESULT
@@ -101,22 +91,22 @@ report <-TMB::sdreport(obj)
 # unlog(groupby(report$par.fixed))
 # groupby(report$par.random)
 
-result <- unlog(obj$env$parList())
+result <- util::unlog(obj$env$parList())
 
 # result$cov <- recompose_cov(result$theta, result$sds)
 # result$cov
 
 
 # Gets the values matching the function signature
-values <- result[formalArgs(calc_ratings)]
+values <- result[formalArgs(util::calc_ratings)]
 
 
 # Sort teams by score rating
-ratings <- do.call(calc_ratings, values)
+ratings <- do.call(util::calc_ratings, values)
 for (team in teams$name[order(ratings, decreasing=TRUE)]) print(team)
 
 
 # Sort teams by point system
-points <- do.call(calc_points, values)
+points <- do.call(util::calc_points, values)
 for (point_index in order(points, decreasing=TRUE))
     print(paste(teams$name[point_index], points[point_index]))
