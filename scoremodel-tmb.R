@@ -1,6 +1,5 @@
 set.seed(0)
 library(TMB)
-library(skellam)
 
 # hacky way to create a virtual package
 source("import.R")
