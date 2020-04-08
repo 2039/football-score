@@ -19,6 +19,6 @@ away_scores <- matrix(default, ncol=n, nrow=n)
 away_scores[indexes] <- scores[TRUE, 4]
 
 time_indexes <- as.matrix(scores_full[c(1, 2, 5)])
-time_indexes[T, 1] <- teams[match(time_indexes[T, 1], teams[T, 2]), 1]
-time_indexes[T, 2] <- teams[match(time_indexes[T, 2], teams[T, 2]), 1]
+time_indexes[T, 1] <- teams[match(time_indexes[T, 1], teams[T, 2]), 1] + 1
+time_indexes[T, 2] <- teams[match(time_indexes[T, 2], teams[T, 2]), 1] + 1
 time_indexes <- matrix(as.numeric(time_indexes), nrow=nrow(time_indexes))
