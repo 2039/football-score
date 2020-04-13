@@ -8,6 +8,7 @@ exports = c(
     "decompose_cov", "recompose_cov",
     "eigen_decompose2D", "eigen_recompose2D",
     "groupby", "unlog", "unindex", "llambdas",
+    "calc_VAR_ratings",
     "calc_ratings", "calc_points"
 )
 
@@ -179,9 +180,13 @@ unlog <- function(l) {
     #'     A list with no keys starting with `log_`
 
     for (name in names(l)) {
-        if (startsWith(name, "log")) {
+        if (strsplit(name, "_")[[1]][1] == "log") {
             expname <- substring(name, 5)
             l[[expname]] <- exp(l[[name]])
+            l[[name]] <- NULL # ?!! assignment deletes component
+        } else if (strsplit(name, "_")[[1]][1] == "logit") {
+            expname <- substring(name, 7)
+            l[[expname]] <- 2/(1+exp(-l[[name]]))-1;
             l[[name]] <- NULL # ?!! assignment deletes component
         }
     }
@@ -270,6 +275,29 @@ calc_ratings <- function(alpha, beta, gamma, mu) {
     # ratings <- ratings / matches_by_team
 
     return(ratings)
+}
+
+#' @export
+calc_VAR_ratings <- function(A, gamma, mu, stats) {
+    ratings <- array(0, dim=c(16))
+
+    # can't loop over rows in array
+    for (i in 1:nrow(stats)) {
+        round_stats = stats[i, T]
+
+        home_team <- round_stats[1]
+        away_team <- round_stats[2]
+        round     <- round_stats[3]
+        is_home   <- round_stats[4] # {-1, 1}
+
+        match_score <- A[round, home_team, 1] - A[round, away_team, 2] - is_home*gamma + mu
+
+        team <- if(is_home>0) home_team else away_team
+
+        ratings[team] <- ratings[team] + exp(match_score)
+    }
+
+    ratings
 }
 
 
