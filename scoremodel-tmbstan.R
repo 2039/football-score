@@ -21,9 +21,8 @@ mu <- sum(home_scores + away_scores, na.rm=TRUE) / (2*m)
 
 Sigma <- matrix(c(1,0.2,0.2,2), ncol=2)
 
-params <- util::decompose_cov(Sigma)
-theta <- params$theta
-sds <- params$sds
+theta <- util::decompose_cov(Sigma)$theta
+sds <- util::decompose_cov(Sigma)$sds
 
 
 # Create datalist

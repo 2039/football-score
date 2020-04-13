@@ -15,7 +15,7 @@ Type objective_function<Type>::operator() ()
   PARAMETER(gamma);
   PARAMETER(mu);
 
-  // TODO: figure out how to properly make a cov-matrix
+  // covariance-matrix parameters
   PARAMETER_VECTOR(theta);   // rho = rho(theta)
   PARAMETER_VECTOR(log_sds); // sqrt-variance diagonal
 
@@ -25,13 +25,13 @@ Type objective_function<Type>::operator() ()
   // Subclass of MVNORM_t
   density::UNSTRUCTURED_CORR_t<Type> NEG_LOG_MVNORM_UNSCALED(theta);
 
-  int matches = alpha.size();
+  int teams = alpha.size();
 
   // Initialize value for negative-log-likelihood
   Type nll = 0;
 
   // log-likelihood of match scores
-  for (int i=0; i < matches; i++) { for (int j=0; j < matches; j++) {
+  for (int i=0; i < teams; i++) for (int j=0; j < teams; j++) {
       if (i == j) { continue; /* A team never matches with themselves */ }
 
       // llambda == log-lambda
@@ -41,10 +41,10 @@ Type objective_function<Type>::operator() ()
       // dpois(x: float, lambda: float, log: bool) -> float
       nll += -dpois(HOME(i, j), exp(llambda_home), true);
       nll += -dpois(AWAY(i, j), exp(llambda_away), true);
-  }}
+  }
 
   // log-likelihood of latent variables
-  for (int i=0; i < matches; i++) {
+  for (int i=0; i < teams; i++) {
     vector<Type> x(2); x << alpha(i), beta(i);
 
     nll += density::VECSCALE(NEG_LOG_MVNORM_UNSCALED, sds)(x);
