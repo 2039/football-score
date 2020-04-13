@@ -5,9 +5,10 @@ library(skellam)
 
 exports = c(
     "where", "ddiag", "chol", "inv",
-    "decompose_cov", "recompose_cov", "groupby",
-    "unlog", "unindex", "llambdas", "calc_ratings",
-    "calc_points"
+    "decompose_cov", "recompose_cov",
+    "eigen_decompose2D", "eigen_recompose2D",
+    "groupby", "unlog", "unindex", "llambdas",
+    "calc_ratings", "calc_points"
 )
 
 foo <- function(x) {2+x}
@@ -37,7 +38,8 @@ inv  <- solve
 
 #' @export
 decompose_cov <- function(Sigma) {
-    #' @description Rebuild covariance matrix from theta and sds
+    #' @description Decompose the covariance matrix into theta
+    #'     and its standard deviations
     #'
     #' @param Sigma matrix(ncol=n, nrow=n):
     #'     The corresponding covariance matrix
@@ -86,6 +88,58 @@ recompose_cov <- function(theta, sds) {
     Sigma <- diag(sds) %*% Rho %*% diag(sds)
 
     Sigma
+}
+
+
+
+#' @export
+eigen_decompose2D <- function(Phi) {
+    #' @description Decompose the matrix into its angular eigendecomposition
+    #'
+    #' @param Sigma matrix(ncol=2, nrow=2):
+    #'     The corresponding covariance matrix
+    #'
+    #' @return list():
+    #'     A list containing two elements:
+    #'     theta : c()
+    #'         A 2-sized vector
+    #'     sds : c()
+    #'         A 2-sized vector
+
+    eig <- eigen(Phi)
+    theta <- atan2(eig$vectors[2,],eig$vectors[1,])
+    lambda <- eig$values
+
+    params <- list(
+        theta = theta,
+        lambda = lambda
+    )
+
+    params
+}
+
+
+
+#' @export
+eigen_recompose2D <- function(theta, lambda) {
+    #' @description Rebuild the matrix from its eigen decomposition
+    #'
+    #' @param Sigma matrix(ncol=n, nrow=n):
+    #'     The corresponding covariance matrix
+    #'
+    #' @param theta c():
+    #'     A 2-sized vector
+    #'
+    #' @param lambda c():
+    #'     A 2-sized vector
+    #'
+    #' @return matrix(ncol=2, nrow=2):
+    #'     The corresponding covariance matrix
+
+    vec <- matrix(c(cos(theta),sin(theta)),2,2,byrow=TRUE)
+    Phi <- vec %*% diag(lambda) %*% solve(vec)
+
+    Phi
 }
 
 
