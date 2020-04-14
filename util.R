@@ -8,8 +8,9 @@ exports = c(
     "decompose_cov", "recompose_cov",
     "eigen_decompose2D", "eigen_recompose2D",
     "groupby", "unlog", "unindex", "llambdas",
-    "calc_VAR_ratings",
-    "calc_ratings", "calc_points"
+    "calc_ratings", "calc_VAR_ratings",
+    "calc_points", "calc_VAR_points",
+    "rankings"
 )
 
 foo <- function(x) {2+x}
@@ -290,14 +291,14 @@ calc_VAR_ratings <- function(A, gamma, mu, stats) {
         round     <- round_stats[3]
         is_home   <- round_stats[4] # {-1, 1}
 
-        match_score <- A[round, home_team, 1] - A[round, away_team, 2] - is_home*gamma + mu
+        match_score <- A[round, home_team, 1] - A[round, away_team, 2] + is_home*gamma + mu
 
         team <- if(is_home>0) home_team else away_team
 
         ratings[team] <- ratings[team] + exp(match_score)
     }
 
-    ratings
+    ratings / 30
 }
 
 
@@ -346,4 +347,43 @@ calc_points <- function(alpha, beta, gamma, mu) {
     # }
 
     return(points)
+}
+
+#' @export
+calc_VAR_points <- function(A, gamma, mu, stats) {
+    points <- array(0, dim=c(16))
+
+    # can't loop over rows in array
+    for (i in 1:nrow(stats)) {
+        round_stats = stats[i, T]
+
+        team      <- round_stats[1]
+        opponent  <- round_stats[2]
+        round     <- round_stats[3]
+        advantage <- round_stats[4] # {-1, 1}
+
+        team_lambda <- exp(A[round, team, 1] - A[round, opponent, 2] + advantage*gamma + mu)
+
+        opponent_lambda <- exp(A[round, opponent, 1] - A[round, team, 2] - advantage*gamma + mu)
+
+
+        tie          <- skellam::dskellam( 0, team_lambda, opponent_lambda)
+        team_win     <- skellam::pskellam(-1, opponent_lambda, team_lambda)
+        opponent_win <- skellam::pskellam(-1, team_lambda, opponent_lambda)
+
+        points[team] <- points[team] + 0*opponent_win + 1*tie + 3*team_win
+    }
+
+    points
+}
+
+
+#' @export
+rankings <- function(points, teams) {
+    sorting <- order(points, decreasing=TRUE)
+
+    data.frame(
+        teams = teams[sorting],
+        points = format(round(points[sorting], 2), nsmall=2)
+    )
 }

@@ -45,9 +45,12 @@ eigtheta <- util::eigen_decompose2D(Phi)$theta
 eiglambda <- util::eigen_decompose2D(Phi)$lambda
 
 
+ztats = matrix(unlist(data::ztats), ncol=5)
+stats = matrix(unlist(data::stats), ncol=5)
+
 # Create datalist
 data <- list(
-    stats = data::ztats
+    stats = ztats
 )
 
 
@@ -66,14 +69,16 @@ parameters <- list(
 #######
 ### OBJECTIVE FUNCTION
 
+MODEL = "var_tmb"
+
 # Compile and link the template
-. <- TMB::compile("models-tmb/var_tmb.cpp") # Only needed once
-dyn.load(TMB::dynlib("models-tmb/var_tmb"))
+# paste0 concatenates strings (without separator)
+. <- TMB::compile(paste0("models-tmb/", MODEL, ".cpp")) # Only needed once
+dyn.load(TMB::dynlib(paste0("models-tmb/", MODEL)))
 
 
 # Make Automatic Differentiation Function
-obj <- TMB::MakeADFun(data, parameters, random=c("A"), DLL="var_tmb", silent=TRUE)
-#obj$fn()
+obj <- TMB::MakeADFun(data, parameters, random=c("A"), DLL=MODEL, silent=T)
 
 
 # NonLinear MINimization subject to Box constraints
@@ -92,26 +97,19 @@ report <-TMB::sdreport(obj)
 
 result <- util::unlog(obj$env$parList())
 
-Phi = util::eigen_recompose2D(result$eigtheta, result$eiglambda)
+# Phi = util::eigen_recompose2D(result$eigtheta, result$eiglambda)
 
 
 # result$cov <- recompose_cov(result$theta, result$sds)
 # result$cov
 
 
-# # Gets the values matching the function signature + stats
+# # Gets the result values matching the function signature + stats
 values <- result[intersect(names(result), formalArgs(util::calc_VAR_ratings))]
 values$stats <- stats
 
 
-# Sort teams by score rating
-ratings <- do.call(util::calc_VAR_ratings, values)
+# Sort teams by points
+points <- do.call(util::calc_VAR_points, values)
 
-ratings
-for (team in teams$name[order(ratings, decreasing=TRUE)]) print(team)
-
-
-# # Sort teams by point system
-# points <- do.call(util::calc_points, values)
-# for (point_index in order(points, decreasing=TRUE))
-#     print(paste(teams$name[point_index], points[point_index]))
+util::rankings(points, as.character(teams$name))

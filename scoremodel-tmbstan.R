@@ -99,10 +99,9 @@ values <- result[formalArgs(util::calc_ratings)]
 
 # Sort teams by score rating
 ratings <- do.call(util::calc_ratings, values)
-for (team in teams$name[order(ratings, decreasing=TRUE)]) print(team)
+util::rankings(ratings, as.character(teams$name))
 
 
 # Sort teams by point system
 points <- do.call(util::calc_points, values)
-for (point_index in order(points, decreasing=TRUE))
-    print(paste(teams$name[point_index], points[point_index]))
+util::rankings(points, as.character(teams$name))

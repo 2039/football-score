@@ -47,13 +47,17 @@ parameters <- list(
 #######
 ### OBJECTIVE FUNCTION
 
+MODEL = "poisson_tmb"
+
 # Compile and link the template
-. <- TMB::compile("models-tmb/poisson_tmb.cpp") # Only needed once
-dyn.load(TMB::dynlib("models-tmb/poisson_tmb"))
+# paste0 concatenates strings (without separator)
+. <- TMB::compile(paste0("models-tmb/", MODEL, ".cpp")) # Only needed once
+dyn.load(TMB::dynlib(paste0("models-tmb/", MODEL)))
+
 
 
 # Make Automatic Differentiation Function
-obj <- TMB::MakeADFun(data, parameters, random=c("alpha", "beta"), DLL="poisson_tmb", silent=TRUE)
+obj <- TMB::MakeADFun(data, parameters, random=c("alpha", "beta"), DLL=MODEL, silent=TRUE)
 #obj$fn()
 
 
@@ -101,10 +105,9 @@ values <- result[formalArgs(util::calc_ratings)]
 
 # Sort teams by score rating
 ratings <- do.call(util::calc_ratings, values)
-for (team in teams$name[order(ratings, decreasing=TRUE)]) print(team)
+util::rankings(ratings, as.character(teams$name))
 
 
 # Sort teams by point system
 points <- do.call(util::calc_points, values)
-for (point_index in order(points, decreasing=TRUE))
-    print(paste(teams$name[point_index], points[point_index]))
+util::rankings(points, as.character(teams$name))
