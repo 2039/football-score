@@ -21,13 +21,14 @@ Type objective_function<Type>::operator() ()
   PARAMETER_VECTOR(log_sds); // sqrt-variance diagonal
 
   // Parametrization based off https://github.com/jtufto/tmb-var1/
-  PARAMETER_VECTOR(eigtheta);
-  PARAMETER_VECTOR(logit_eiglambda); // Phi = Phi(eigentheta, eigenlambda)
+  // PARAMETER_VECTOR(eigtheta);
+  // PARAMETER_VECTOR(logit_eiglambda); // Phi = Phi(eigentheta, eigenlambda)
+  // PARAMETER_MATRIX(Phi)
 
   /* Variables (un-parameterized) */
   vector<Type> sds = exp(log_sds);
 
-  vector<Type> eiglambda = 2/(1+exp(-logit_eiglambda))-1;
+  // vector<Type> eiglambda = 2/(1+exp(-logit_eiglambda))-1;
 
   int d = sds.rows();
 
@@ -50,15 +51,15 @@ Type objective_function<Type>::operator() ()
 
 
   // // We construct Phi, the coefficient matrix of the VAR(1) series
-  matrix<Type> eigvec(d,d);
-  eigvec.row(0) << cos(eigtheta(0)), cos(eigtheta(1));
-  eigvec.row(1) << sin(eigtheta(0)), sin(eigtheta(1));
+  // matrix<Type> eigvec(d,d);
+  // eigvec.row(0) << cos(eigtheta(0)), cos(eigtheta(1));
+  // eigvec.row(1) << sin(eigtheta(0)), sin(eigtheta(1));
 
-  matrix<Type> D(d,d);
-  D.row(0) << eiglambda(0),            0;
-  D.row(1) <<            0, eiglambda(1);
+  // matrix<Type> D(d,d);
+  // D.row(0) << eiglambda(0),            0;
+  // D.row(1) <<            0, eiglambda(1);
 
-  matrix<Type> Phi = eigvec * D * eigvec.inverse(); ADREPORT(Phi);
+  // matrix<Type> Phi = eigvec * D * eigvec.inverse(); ADREPORT(Phi);
 
 
   // We construct (vec)Gamma_0, where we have the relation
@@ -66,18 +67,18 @@ Type objective_function<Type>::operator() ()
   // where ⊗ is the kronecker product
 
   // Initialize identity(4) matrix
-  matrix<Type> I4(d*d, d*d); I4.setIdentity();
+  // matrix<Type> I4(d*d, d*d); I4.setIdentity();
 
-  vector<Type> vecGamma0 =
-    (matrix<Type>)(I4 - kronecker(Phi, Phi)).inverse() * vecSigma_w;
+  // vector<Type> vecGamma0 =
+  //   (matrix<Type>)(I4 - kronecker(Phi, Phi)).inverse() * vecSigma_w;
 
-  // Gamma0 = matricize(vec(Gamma0))
-  // Matrix.reshaped() is not supported until Eigen 3.4
-  // (unreleased as of 2020-04-13)
-  matrix<Type> Gamma0(d,d);
-  for (int i=0; i<d; i++)
-    for (int j=0; j<d; j++)
-      Gamma0(i,j) = vecGamma0(i+j*d);
+  // // Gamma0 = matricize(vec(Gamma0))
+  // // Matrix.reshaped() is not supported until Eigen 3.4
+  // // (unreleased as of 2020-04-13)
+  // matrix<Type> Gamma0(d,d);
+  // for (int i=0; i<d; i++)
+  //   for (int j=0; j<d; j++)
+  //     Gamma0(i,j) = vecGamma0(i+j*d);
 
 
 
@@ -112,7 +113,7 @@ Type objective_function<Type>::operator() ()
     // No array.row() method so we transpose to access inner dimension
     vector<Type> x0 = A.transpose().col(0).col(t);
 
-    nll += density::MVNORM(Gamma0)(x0);
+    nll += density::MVNORM(Sigma_w)(x0);
   }
 
   /* VAR(1) noise error */
