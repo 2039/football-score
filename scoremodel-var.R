@@ -69,7 +69,7 @@ parameters <- list(
 #######
 ### OBJECTIVE FUNCTION
 
-MODEL = "var_tmb"
+MODEL = "rw_tmb"
 
 # Compile and link the template
 # paste0 concatenates strings (without separator)
