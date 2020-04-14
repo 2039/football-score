@@ -97,7 +97,7 @@ Type objective_function<Type>::operator() ()
     Type score    = round_stats(4); // BUG dpois cant take int as first argument
 
 
-    Type llambda = A(round, home_team, 0) + A(round, away_team, 1) + is_home * gamma + mu;
+    Type llambda = A(round, home_team, 0) - A(round, away_team, 1) + is_home * gamma + mu;
 
 
     nll += -dpois(score, exp(llambda), true);
@@ -120,8 +120,6 @@ Type objective_function<Type>::operator() ()
   for (int t=0; t < teams; t++) for (int r=1; r < rounds; r++) {
     // No array.row() method so we transpose to access inner dimension
     vector<Type> xp = A.transpose().col(r-1).col(t);
-
-    // cascading assignment
     vector<Type> xn = A.transpose().col(r).col(t);
 
     vector<Type> w = Phi * xp - xn;
