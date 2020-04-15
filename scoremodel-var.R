@@ -112,4 +112,4 @@ values$stats <- stats
 # Sort teams by points
 points <- do.call(util::calc_VAR_points, values)
 
-util::rankings(points, as.character(teams$name))
+util::rankings(points, teams$name)
