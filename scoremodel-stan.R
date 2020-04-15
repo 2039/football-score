@@ -12,15 +12,13 @@ import(from="util.R")
 #######
 ### DATA
 
-data <- c("teams","n", "m", "home_scores", "away_scores")
+data <- c("teams","matches", "team", "home_score", "away_score", "mu")
 import(data, from="data.R")
 
 
 
 #######
 ### PARAMETERS
-
-mu <- sum(home_scores + away_scores, na.rm=TRUE) / (2*m)
 
 Sigma <- matrix(c(1,0.2,0.2,1), ncol=2)
 Sigma <- diag(2)
@@ -30,16 +28,16 @@ Sigma <- diag(2)
 
 # Create datalist
 data <- list(
-    N = n,
-    home_scores = home_scores,
-    away_scores = away_scores
+    N = teams,
+    home_scores = home_score,
+    away_scores = away_score
 )
 
 
 # Define variables & parameters
 parameters <- list(
-    alpha = rep(0, n),
-    beta  = rep(0, n),
+    alpha = rep(0, teams),
+    beta  = rep(0, teams),
     #AB    = matrix(0.1, 2, n),
     gamma = 1,
     mu    = mu,
@@ -73,9 +71,9 @@ values <- result[formalArgs(util::calc_ratings)]
 
 # Sort teams by score rating
 ratings <- do.call(util::calc_ratings, values)
-util::rankings(ratings, teams$name)
+print(util::rankings(ratings, team$name))
 
 
 # Sort teams by point system
 points <- do.call(util::calc_points, values)
-util::rankings(points, teams$name)
+print(util::rankings(points, team$name))

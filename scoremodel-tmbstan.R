@@ -9,15 +9,13 @@ import(from="util.R")
 #######
 ### DATA
 
-data <- c("teams","n", "m", "home_scores", "away_scores")
+data <- c("teams", "matches", "team", "home_score", "away_score", "mu")
 import(data, from="data.R")
 
 
 
 #######
 ### PARAMETERS
-
-mu <- sum(home_scores + away_scores, na.rm=TRUE) / (2*m)
 
 Sigma <- matrix(c(1,0.2,0.2,2), ncol=2)
 
@@ -27,15 +25,15 @@ sds <- util::decompose_cov(Sigma)$sds
 
 # Create datalist
 data <- list(
-    HOME = home_scores,
-    AWAY = away_scores
+    HOME = home_score,
+    AWAY = away_score
 )
 
 
 # Define variables & parameters
 parameters <- list(
-    alpha = rep(0, n),
-    beta  = rep(0, n),
+    alpha = rep(0, teams),
+    beta  = rep(0, teams),
     gamma = 1,
     mu    = log(mu),
     theta = theta,
@@ -70,27 +68,7 @@ system.time(opt <- tmbstan(obj, laplace=TRUE))
 report <-TMB::sdreport(obj)
 
 
-# :: NOTE
-# There are a lot of ways to obtain the results; the documentation
-# is not clear on which is appropriate.
-
-# opt$par == rep$par.fixed
-# obj$report()
-
-# obj$env$last.par
-# obj$env$last.par.best
-# obj$env$random
-
-# attributes(rep)
-# attributes(obj[names(obj) == "report"])
-
-# unlog(groupby(report$par.fixed))
-# groupby(report$par.random)
-
 result <- util::unlog(obj$env$parList())
-
-# result$cov <- recompose_cov(result$theta, result$sds)
-# result$cov
 
 
 # Gets the values matching the function signature
@@ -99,9 +77,9 @@ values <- result[formalArgs(util::calc_ratings)]
 
 # Sort teams by score rating
 ratings <- do.call(util::calc_ratings, values)
-util::rankings(ratings, teams$name)
+print(util::rankings(ratings, team$name))
 
 
 # Sort teams by point system
 points <- do.call(util::calc_points, values)
-util::rankings(points, teams$name)
+print(util::rankings(points, team$name))

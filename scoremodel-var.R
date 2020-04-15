@@ -4,60 +4,44 @@ library(TMB)
 # hacky way to create a virtual package
 source("import.R")
 import(from="util.R")
+import(from="options.R")
+
 
 
 #######
 ### DATA
 
-data <- c("teams", "rounds", "n", "m", "stats")
+data <- c("teams", "rounds", "matches", "mu")
 import(data, from="data.R")
 
-
-# Phi <- matrix(c(.9,.1,-.2,.3),2,2)
-# # Phi <- array(c(0.9,0.1,-0.2, 0.1,0.6,-0.1, -0.2,0.1,0.3), dim=c(3,3))
-
-# theta <- util::eigen_decompose2D(Phi)$theta
-# lambda <- util::eigen_decompose2D(Phi)$lambda
-# Phi <- util::eigen_recompose2D(theta, lambda)
-# Phi
 
 
 #######
 ### PARAMETERS
 
-
-n <- 16
-
-rounds <- 2*(n-1)
-matches <- n*(n-1)
-
-A <- array(0.1, dim=c(rounds, n, 2))
-
-mu <- sum(data::stats[T,5]) / (2*m)
+A <- array(0.1, dim=c(rounds, teams, 2))
 
 
-Sigma <- matrix(c(1,0.2,0.2,2), ncol=2)
-theta <- util::decompose_cov(Sigma)$theta
-sds <- util::decompose_cov(Sigma)$sds
+# Sigma_w and its parameters
+Sigma_w <- matrix(c(1,0.2,0.2,2), ncol=2)
+theta   <- util::decompose_cov(Sigma_w)$theta
+sds     <- util::decompose_cov(Sigma_w)$sds
 
-Phi <- matrix(c(.9,.1,-.2,.3),2,2)
-eigtheta <- util::eigen_decompose2D(Phi)$theta
+# Phi and its parameters
+Phi       <- matrix(c(.9,.1,-.2,.3),2,2)
+eigtheta  <- util::eigen_decompose2D(Phi)$theta
 eiglambda <- util::eigen_decompose2D(Phi)$lambda
 
 
-ztats = matrix(unlist(data::ztats), ncol=5)
-stats = matrix(unlist(data::stats), ncol=5)
-
 # Create datalist
 data <- list(
-    stats = ztats
+    stats = as.matrix(data::ztats)
 )
-
 
 # Define variables & parameters
 parameters <- list(
     A     = A,
-    gamma = 1,
+    gamma = 0,
     mu    = log(mu),
     theta = theta,
     log_sds = log(sds),
@@ -66,10 +50,11 @@ parameters <- list(
 )
 
 
+
 #######
 ### OBJECTIVE FUNCTION
 
-MODEL = "rw_tmb"
+MODEL = "var_tmb"
 
 # Compile and link the template
 # paste0 concatenates strings (without separator)
@@ -97,19 +82,17 @@ report <-TMB::sdreport(obj)
 
 result <- util::unlog(obj$env$parList())
 
-# Phi = util::eigen_recompose2D(result$eigtheta, result$eiglambda)
+# save to file if CLI arguments are used [--save name]
+if (util::is.nonempty(options::options$save)) options::save(result)
 
 
-# result$cov <- recompose_cov(result$theta, result$sds)
-# result$cov
-
-
-# # Gets the result values matching the function signature + stats
+# Gets the result values matching the function signature + stats
 values <- result[intersect(names(result), formalArgs(util::calc_VAR_ratings))]
-values$stats <- stats
+values$stats <- as.matrix(data::stats)
 
 
 # Sort teams by points
 points <- do.call(util::calc_VAR_points, values)
 
-util::rankings(points, teams$name)
+# print rankings
+print(util::rankings(points, data::team$name))

@@ -4,6 +4,7 @@ library(expm, warn.conflicts = FALSE, quietly = TRUE)
 library(skellam)
 
 exports = c(
+    "is.nonempty",
     "where", "ddiag", "chol", "inv",
     "decompose_cov", "recompose_cov",
     "eigen_decompose2D", "eigen_recompose2D",
@@ -12,6 +13,9 @@ exports = c(
     "calc_points", "calc_VAR_points",
     "rankings"
 )
+
+#' @export
+is.nonempty <- function(s) (!is.null(s) && s != "")
 
 foo <- function(x) {2+x}
 
@@ -246,8 +250,8 @@ calc_ratings <- function(alpha, beta, gamma, mu) {
     #' @description calculates the rating for each team as the average lambda
     #'     score of each match the team plays in
     #'
-    #' @param alpha numeric
-    #' @param beta numeric
+    #' @param alpha numeric matrix
+    #' @param beta numeric matrix
     #' @param gamma numeric
     #' @param mu numeric
 
@@ -280,6 +284,14 @@ calc_ratings <- function(alpha, beta, gamma, mu) {
 
 #' @export
 calc_VAR_ratings <- function(A, gamma, mu, stats) {
+    #' @description calculates the rating for each team as the average lambda
+    #'     score of each match the team plays in
+    #'
+    #' @param A numeric array
+    #' @param gamma numeric
+    #' @param mu numeric
+    #' @param stats numeric array
+
     ratings <- array(0, dim=c(16))
 
     # can't loop over rows in array
@@ -308,8 +320,8 @@ calc_points <- function(alpha, beta, gamma, mu) {
     #' @description calculates the points for each team as given by
     #'     the points system
     #'
-    #' @param alpha numeric
-    #' @param beta numeric
+    #' @param alpha numeric matrix
+    #' @param beta numeric matrix
     #' @param gamma numeric
     #' @param mu numeric
 
@@ -351,6 +363,14 @@ calc_points <- function(alpha, beta, gamma, mu) {
 
 #' @export
 calc_VAR_points <- function(A, gamma, mu, stats) {
+    #' @description calculates the points for each team as given by
+    #'     the points system
+    #'
+    #' @param A numeric array
+    #' @param gamma numeric
+    #' @param mu numeric
+    #' @param stats numeric array
+
     points <- array(0, dim=c(16))
 
     # can't loop over rows in array
