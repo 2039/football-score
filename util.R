@@ -375,16 +375,17 @@ calc_VAR_points <- function(A, gamma, mu, stats) {
 
     # can't loop over rows in array
     for (i in 1:nrow(stats)) {
-        round_stats = stats[i, T]
+        match_stats = stats[i, T]
 
-        team      <- round_stats[1]
-        opponent  <- round_stats[2]
-        round     <- round_stats[3]
-        advantage <- round_stats[4] # {-1, 1}
+        team           <- match_stats[1]
+        opponent       <- match_stats[2]
+        team_round     <- match_stats[3]
+        opponent_round <- match_stats[4]
+        advantage      <- match_stats[5] # {-1, 1}
 
-        team_lambda <- exp(A[round, team, 1] - A[round, opponent, 2] + advantage*gamma + mu)
+        team_lambda <- exp(A[team_round, team, 1] - A[opponent_round, opponent, 2] + advantage*gamma + mu)
 
-        opponent_lambda <- exp(A[round, opponent, 1] - A[round, team, 2] - advantage*gamma + mu)
+        opponent_lambda <- exp(A[opponent_round, opponent, 1] - A[team_round, team, 2] - advantage*gamma + mu)
 
 
         tie          <- skellam::dskellam( 0, team_lambda, opponent_lambda)

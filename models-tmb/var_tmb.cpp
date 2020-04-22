@@ -90,14 +90,15 @@ Type objective_function<Type>::operator() ()
     vector<int> round_stats = stats.row(s);
 
     // this would be so much prettier/readable with tuple assignment ...
-    int team      = round_stats(0);
-    int opponent  = round_stats(1);
-    int round     = round_stats(2);
-    int advantage = round_stats(3); // {-1, 1}
-    Type score    = round_stats(4); // BUG dpois cant take int as first argument
+    int team       = round_stats(0);
+    int opponent   = round_stats(1);
+    int team_round = round_stats(2);
+    int opponent_round = round_stats(3);
+    int advantage  = round_stats(4); // {-1, 1}
+    Type score     = round_stats(5); //BUG dpois cant take int as first argument
 
     Type llambda =
-      A(round, team, 0) - A(round, opponent, 1) + advantage * gamma + mu;
+      A(team_round, team, 0) - A(opponent_round, opponent, 1) + advantage * gamma + mu;
 
     nll += -dpois(score, exp(llambda), true);
   }
