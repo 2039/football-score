@@ -8,7 +8,9 @@ exports = c(
     "where", "ddiag", "chol", "inv",
     "decompose_cov", "recompose_cov",
     "eigen_decompose2D", "eigen_recompose2D",
+    "AR_Gamma0",
     "groupby", "unlog", "unindex", "llambdas",
+    "points_from_score",
     "calc_ratings", "calc_VAR_ratings",
     "calc_points", "calc_VAR_points",
     "rankings"
@@ -149,6 +151,22 @@ eigen_recompose2D <- function(theta, lambda) {
 }
 
 
+#' @export
+AR_Gamma0 <- function(Phi, Sigma_w) {
+    #' @description Computes the covariance matrix from the
+    #'   coefficient matrix and the noise covariance matrix
+    #'
+    #' @param Phi matrix(2,2) coefficient matrix
+    #'
+    #' @param Sigma_w matrix(2,2) noise covariance matrix
+    #'
+    #' @return matrix(2,2) covariance matrix
+
+    Gamma0 <- solve(diag(4)-kronecker(Phi, Phi), as.vector(Sigma_w))
+    dim(Gamma0) <- c(2, 2)
+
+    return(Gamma0)
+}
 
 #' @export
 groupby <- function(x) {
@@ -246,6 +264,36 @@ llambdas <- function(alpha, beta, gamma, mu) {
 
 
 #' @export
+points_from_score <- function(team_indexes, scores) {
+    matches <- nrow(team_indexes)
+
+    teams <- length(unique(unlist(team_indexes[c("home_team", "away_team")])))
+
+    point <- array(0, dim=c(teams))
+
+    # indicator function
+    I <- function(cond) as.numeric(cond)
+
+    for (i in 1:matches) {
+        home <- team_indexes[i, 1]
+        away <- team_indexes[i, 2]
+        home_score <- scores[i, 1]
+        away_score <- scores[i, 2]
+
+        home_win <- home_score > away_score
+        tie      <- home_score == away_score
+        away_win <- home_score < away_score
+
+        point[home] <- point[home] + 3*I(home_win) + 1*I(tie)
+        point[away] <- point[away] + 3*I(away_win) + 1*I(tie)
+    }
+
+    return(point)
+}
+
+
+
+#' @export
 calc_ratings <- function(alpha, beta, gamma, mu) {
     #' @description calculates the rating for each team as the average lambda
     #'     score of each match the team plays in
@@ -296,18 +344,15 @@ calc_VAR_ratings <- function(A, gamma, mu, stats) {
 
     # can't loop over rows in array
     for (i in 1:nrow(stats)) {
-        round_stats = stats[i, T]
+        team           <- match_stats[1]
+        opponent       <- match_stats[2]
+        team_round     <- match_stats[3]
+        opponent_round <- match_stats[4]
+        advantage      <- match_stats[5] # {-1, 1}
 
-        home_team <- round_stats[1]
-        away_team <- round_stats[2]
-        round     <- round_stats[3]
-        is_home   <- round_stats[4] # {-1, 1}
+        match_score <- exp(A[team_round, team, 1] - A[opponent_round, opponent, 2] + advantage*gamma + mu)
 
-        match_score <- A[round, home_team, 1] - A[round, away_team, 2] + is_home*gamma + mu
-
-        team <- if(is_home>0) home_team else away_team
-
-        ratings[team] <- ratings[team] + exp(match_score)
+        ratings[team] <- ratings[team] + match_score
     }
 
     ratings / 30

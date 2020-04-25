@@ -1,4 +1,11 @@
-exports <- c("n", "teams", "m", "matches", "r", "rounds", "indexes", "stats", "ztats", "mu", "team", "score_full", "home_score", "away_score")
+exports <- c(
+    "n", "teams", "m", "matches", "r", "rounds",
+    "team_indexes", "match_indexes", "score_indexes",
+    "advantage",
+    "stats", "ztats",
+    "mu",
+    "team", "score_full", "home_score", "away_score"
+)
 
 # fixes default arguments
 read.csv.better <- function (file, ...)
@@ -20,46 +27,58 @@ m <- matches <- n*(n-1) # alias for m
 r <- rounds  <- 2*(n-1)
 
 
+date <- score_full[[6]]
+date_order <- order(as.Date(date, format="%d.%m.%Y"))
+
+score_ordered <- score_full[date_order, T]
+
+
 # gief tuple unpack pl0x
-home_team  <- score_full[[1]]
-away_team  <- score_full[[2]]
-home_score <- score_full[[3]]
-away_score <- score_full[[4]]
-round      <- score_full[[5]] # NOT IN CHRONOLOGICAL ORDER
-date       <- score_full[[6]]
+home_team  <- score_ordered[[1]]
+away_team  <- score_ordered[[2]]
+home_score <- score_ordered[[3]]
+away_score <- score_ordered[[4]]
+round      <- score_ordered[[5]]
 
 
 
-score_ordered <- score_full[order(as.Date(date, format="%d.%m.%Y")), c(1, 2)]
-
-
-home_round <- array(0, dim=nrow(score_full))
-away_round <- array(0, dim=nrow(score_full))
-
-
+# these functions gets the rounds of teams sorted by date
 team_round <- function(team)
+    # indexes of team (either home or away)
     which(unname(apply(score_ordered[c(1,2)], 1, function(r) any(team %in% r))))
 
 team_home <- function(team)
+    # indexes of home team
     which(score_ordered[[1]] %in% team)
 
 team_away <- function(team)
+    # indexes of away team
     which(score_ordered[[2]] %in% team)
 
-for (i in 1:n) home_round[team_home(i)] <- match(team_home(i), team_round(i))
-for (i in 1:n) away_round[team_away(i)] <- match(team_away(i), team_round(i))
+team_rounds <- function(team) {
+    .team_round <- array(0, dim=nrow(score_ordered))
 
+    for (i in 1:n) .team_round[team(i)] <- match(team(i), team_round(i))
 
-indexes <- data.frame(home_team, away_team, home_round, away_round)
+    return(.team_round)
+}
+
+# team rounds in ordered by date
+home_round <- team_rounds(team_home)
+away_round <- team_rounds(team_away)
 
 
 advantage <- function(indexes) {
     #' Adds advantage column to indexes,
     #'   depending on whether or not the team plays at home
 
+    unpack <- function(l, k, e) list2env(l[k], e)
+
     # This is really ugly
     exposed <- c("home_team", "away_team", "home_round", "away_round")
-    list2env(indexes[exposed], environment())
+    unpack(indexes, exposed, environment())
+
+    # print(merge(indexes, c(1, -1)))
 
     data.frame(
         team           = c(home_team, away_team),
@@ -70,26 +89,34 @@ advantage <- function(indexes) {
     )
 }
 
-# score keys
-indexes <- advantage(indexes)
+
+# row(home, away)
+team_indexes <- data.frame(home_team, away_team)
+
+# team_indexes + row(home_round, away_round)
+match_indexes <- data.frame(home_team, away_team, home_round, away_round)
+
+# row(team, opponent, team_round, opponent_round, advantage)
+score_indexes <- advantage(match_indexes)
 
 
-# scores
+# row(score)
 scores <- data.frame(score = c(home_score, away_score))
 
-
 # indexes + scores
-stats <- cbind(indexes, scores)
+stats <- cbind(score_indexes, scores)
 
 # zero-indexes + scores
 ztats <- stats
 ztats[T,1:4] <- ztats[T,1:4] - 1
 
 
+# statistical data
 # average score
 mu <- mean(stats$score)
 
 
+# deprecate?
 # scores as matrix
 .indexes <- as.matrix(score[1:2]) + 1 # add for for 1-indexing
 
