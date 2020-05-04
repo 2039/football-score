@@ -1,6 +1,7 @@
 exports <- c(
     "n", "teams", "m", "matches", "r", "rounds",
     "team_indexes", "match_indexes", "score_indexes",
+    "time_diffs",
     "advantage",
     "stats", "ztats",
     "mu",
@@ -20,6 +21,9 @@ score_full <- read.csv.better("data/scores_full.csv")
 score_full[[1]] <- team[match(score_full[[1]], team[T, 2]), 1] + 1
 score_full[[2]] <- team[match(score_full[[2]], team[T, 2]), 1] + 1
 
+# format date
+score_full[[6]] <- as.Date(score_full[[6]], format="%d.%m.%Y")
+
 
 # number of teams & matches
 n <- teams   <- nrow(team)
@@ -27,8 +31,7 @@ m <- matches <- n*(n-1) # alias for m
 r <- rounds  <- 2*(n-1)
 
 
-date <- score_full[[6]]
-date_order <- order(as.Date(date, format="%d.%m.%Y"))
+date_order <- order(score_full[[6]])
 
 score_ordered <- score_full[date_order, T]
 
@@ -39,7 +42,7 @@ away_team  <- score_ordered[[2]]
 home_score <- score_ordered[[3]]
 away_score <- score_ordered[[4]]
 round      <- score_ordered[[5]]
-
+time       <- score_ordered[[6]] - min(score_ordered[[6]])
 
 
 # these functions gets the rounds of teams sorted by date
@@ -55,17 +58,37 @@ team_away <- function(team)
     # indexes of away team
     which(score_ordered[[2]] %in% team)
 
-team_rounds <- function(team) {
+team_rounds <- function(team_indexes) {
     .team_round <- array(0, dim=nrow(score_ordered))
 
-    for (i in 1:n) .team_round[team(i)] <- match(team(i), team_round(i))
+    for (i in 1:n) .team_round[team_indexes(i)] <- match(team_indexes(i), team_round(i))
 
     return(.team_round)
 }
 
+
+team_time_diff <- function(i)
+    # Finds the time difference in days between rounds
+    # The first round is -1
+    c(-1, diff(time[team_round(i)]))
+
+team_time_diffs <- function() {
+    .team_time_diff <- array(0, dim=c(rounds, teams))
+
+    for (i in 1:n) {
+        .team_time_diff[T, i] <- team_time_diff(i)
+
+    }
+
+    return(.team_time_diff)
+}
+
+
 # team rounds in ordered by date
 home_round <- team_rounds(team_home)
 away_round <- team_rounds(team_away)
+
+time_diffs <- team_time_diffs()
 
 
 advantage <- function(indexes) {

@@ -13,6 +13,7 @@ exports = c(
     "points_from_score",
     "calc_ratings", "calc_VAR_ratings",
     "calc_points", "calc_VAR_points",
+    "vectorize_values",
     "rankings"
 )
 
@@ -254,8 +255,8 @@ llambdas <- function(alpha, beta, gamma, mu) {
     for (i in 1:n) for (j in 1:n) {
         if (i==j) next;
 
-        loglambdas[i, j, 1] = alpha[i] - beta[j] + gamma + mu
-        loglambdas[i, j, 2] = alpha[j] - beta[i] - gamma + mu
+        loglambdas[i, j, 1] = alpha[i] - beta[j] + gamma[i] + mu[i]
+        loglambdas[i, j, 2] = alpha[j] - beta[i] - gamma[i] + mu[i]
     }
 
     return(loglambdas)
@@ -350,7 +351,7 @@ calc_VAR_ratings <- function(A, gamma, mu, stats) {
         opponent_round <- match_stats[4]
         advantage      <- match_stats[5] # {-1, 1}
 
-        match_score <- exp(A[team_round, team, 1] - A[opponent_round, opponent, 2] + advantage*gamma + mu)
+        match_score <- exp(A[team_round, team, 1] - A[opponent_round, opponent, 2] + advantage*gamma[team] + mu[team])
 
         ratings[team] <- ratings[team] + match_score
     }
@@ -428,9 +429,9 @@ calc_VAR_points <- function(A, gamma, mu, stats) {
         opponent_round <- match_stats[4]
         advantage      <- match_stats[5] # {-1, 1}
 
-        team_lambda <- exp(A[team_round, team, 1] - A[opponent_round, opponent, 2] + advantage*gamma + mu)
+        team_lambda <- exp(A[team_round, team, 1] - A[opponent_round, opponent, 2] + advantage*gamma[team] + mu[team])
 
-        opponent_lambda <- exp(A[opponent_round, opponent, 1] - A[team_round, team, 2] - advantage*gamma + mu)
+        opponent_lambda <- exp(A[opponent_round, opponent, 1] - A[team_round, team, 2] - advantage*gamma[opponent] + mu[opponent])
 
 
         tie          <- skellam::dskellam( 0, team_lambda, opponent_lambda)
@@ -443,6 +444,14 @@ calc_VAR_points <- function(A, gamma, mu, stats) {
     points
 }
 
+
+#' @export
+vectorize_values <- function(l, keys, size) {
+    for(key in keys)
+        l[[key]] <- array(l[[key]], dim=size)
+
+    return(l)
+}
 
 #' @export
 rankings <- function(points, teams) {
