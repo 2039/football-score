@@ -14,7 +14,8 @@ exports = c(
     "calc_ratings", "calc_VAR_ratings",
     "calc_points", "calc_VAR_points",
     "vectorize_values",
-    "rankings"
+    "rankings",
+    "TMB_AIC"
 )
 
 #' @export
@@ -459,6 +460,22 @@ rankings <- function(points, teams) {
 
     data.frame(
         teams = teams[sorting],
-        points = format(round(points[sorting], 2), nsmall=2)
+        points = format(round(points[sorting], 20), nsmall=20)
     )
+}
+
+# source: https://github.com/kaskr/TMB_contrib_R/blob/master/TMBhelper/R/TMBAIC.R
+# with minor changes for readability
+#' @export
+TMB_AIC <- function(opt, p=2, n=Inf){
+    k <- length(opt[["par"]])
+
+    loglike <- if(hasName(opt, "objective"))
+        -opt[["objective"]] else -opt[["value"]]
+
+    # original code seems broken
+    #if(all(c("par","objective") %in% names(opt))) negloglike <- opt[["objective"]]
+    #if(all(c("par","value") %in% names(opt))) negloglike <- opt[["value"]]
+
+    return(p*k - 2*loglike + 2*k*(k+1)/(n-k-1))
 }
