@@ -3,6 +3,7 @@ library(Matrix)
 library(expm, warn.conflicts = FALSE, quietly = TRUE)
 library(skellam)
 
+
 exports = c(
     "is.nonempty",
     "where", "ddiag", "chol", "inv",
