@@ -1,6 +1,8 @@
 #include <TMB.hpp>
+#include "VAR.cpp"
 
 // https://kaskr.github.io/adcomp/structarray.html#a73c905d02300879a7c8ed576f2c1d84f
+
 
 template<class Type>
 Type objective_function<Type>::operator() ()
@@ -29,56 +31,16 @@ Type objective_function<Type>::operator() ()
 
   vector<Type> eiglambda = 2/(1+exp(-logit_eiglambda))-1;
 
-  int d = sds.rows();
-
   /* Procedure section */
 
-  // We construct (vec)Sigma,
-  // the cov matrix of the gaussian noise in the VAR(1) series
-  matrix<Type> Rho(d, d);
-  Rho = density::UNSTRUCTURED_CORR(theta).cov();
+  // We construct Sigma
+  matrix<Type> Sigma_w = covariance(theta, sds);
 
-  matrix<Type> Sigma_w(d,d);
-  vector<Type> vecSigma_w(d*d);
+  // We construct Phi, the coefficient matrix of the VAR(1) series
+  matrix<Type> Phi = VAR_coeff(eigtheta, eiglambda);
 
-  // Matrix.reshaped() is not supported until Eigen 3.4
-  // (unreleased as of 2020-04-13)
-  for (int i=0; i<d; i++)
-    for (int j=0; j<d; j++)
-      // cascading assignment
-      Sigma_w(i,j) = vecSigma_w(i+j*d) = sds(i)*Rho(i,j)*sds(j);
-
-
-  // // We construct Phi, the coefficient matrix of the VAR(1) series
-  matrix<Type> eigvec(d,d);
-  eigvec.row(0) << cos(eigtheta(0)), cos(eigtheta(1));
-  eigvec.row(1) << sin(eigtheta(0)), sin(eigtheta(1));
-
-  matrix<Type> D(d,d);
-  D.row(0) << eiglambda(0),            0;
-  D.row(1) <<            0, eiglambda(1);
-
-  matrix<Type> Phi = eigvec * D * eigvec.inverse(); ADREPORT(Phi);
-
-
-  // We construct (vec)Gamma_0, where we have the relation
-  // vec(Gamma0) = (I - Phi ⊗ Phi).inv() * vec(Sigma)
-  // where ⊗ is the kronecker product
-
-  // Initialize identity(4) matrix
-  matrix<Type> I4(d*d, d*d); I4.setIdentity();
-
-  vector<Type> vecGamma0 =
-    (matrix<Type>)(I4 - kronecker(Phi, Phi)).inverse() * vecSigma_w;
-
-  // Gamma0 = matricize(vec(Gamma0))
-  // Matrix.reshaped() is not supported until Eigen 3.4
-  // (unreleased as of 2020-04-13)
-  matrix<Type> Gamma0(d,d);
-  for (int i=0; i<d; i++)
-    for (int j=0; j<d; j++)
-      Gamma0(i,j) = vecGamma0(i+j*d);
-
+  // We construct the stationary covariance
+  matrix<Type> Gamma0 = VAR_covariance(Phi, Sigma_w);
 
 
   // Initialize value for negative-log-likelihood (nll)
