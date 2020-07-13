@@ -3,8 +3,8 @@ library(jsonlite)
 
 exports <- c("options", "save", "load")
 
-# [ ] Split into json and RDS saver/loader (maybe not json loader)
-# [ ] Include toggle for saving as json or RDS
+# [o] Split into json and RDS saver/loader (maybe not json loader)
+# [o] Include toggle for saving as json or RDS
 
 options_list = list(
     optparse::make_option(c("-s", "--save"), action="store", default=NULL,
@@ -31,8 +31,15 @@ data_path <- function(name, ext) paste0("data/", name, ".", ext)
 .RDS_save <- function(data, filename)
     saveRDS(data, file=data_path(filename, "dat"))
 
-save <- function(data)
-    switch(options$format, json=.json_save, dat=.RDS_save)(data, options$save)
+.csv_save <- function(data, filename)
+    write.csv(data, file=data_path(filename, "csv"), row.names=F, quote=F)
+
+save <- function(data, format=options$format, filename=options$save)
+    switch(format,
+        json=.json_save,
+        dat=.RDS_save,
+        csv=.csv_save
+    )(data, filename)
 
 
 
@@ -41,9 +48,9 @@ save <- function(data)
 .json_load <- function(filename)
     jsonlite::read_json(path=data_path(filename, "json"))
 
-.RDS_load <- function(filename){
+.RDS_load <- function(filename)
     readRDS(file=data_path(filename, "dat"))
-}
 
-load <- function()
-    switch(options$format, json=.json_load, dat=.RDS_load)(options$load)
+
+load <- function(format=options$format, filename=options$load)
+    switch(format, json=.json_load, dat=.RDS_load)(filename)

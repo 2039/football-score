@@ -10,10 +10,11 @@ exports = c(
     "decompose_cov", "recompose_cov",
     "eigen_decompose2D", "eigen_recompose2D",
     "AR_Gamma0",
-    "groupby", "unlog", "unindex", "llambdas",
+    "groupby", "vecgroupby", "unlog", "unindex", "llambdas",
     "points_from_score",
     "calc_ratings", "calc_VAR_ratings",
     "calc_points", "calc_VAR_points",
+    "calc_match_lambda",
     "vectorize_values",
     "rankings",
     "TMB_AIC"
@@ -193,6 +194,31 @@ groupby <- function(x) {
 }
 
 
+#' @export
+vecgroupby <- function(x) {
+    #' @description Group elements in a named vector by name
+    #'
+    #' @param x c() with names():
+    #'     A named vector
+    #'
+    #' @return list(character = c())
+    #'     A list with the names as keys and elements with
+    #'     the same name in a vector
+
+    result <- list()
+    select <- function(x, name) {
+        y <- x[rownames(x) == name, TRUE]
+        rownames(y) <- NULL
+        return(y)
+    }
+
+    for (name in unique(rownames(x))) {
+        result[[name]] <- select(x, name)
+    }
+
+    return(result)
+}
+
 
 #' @export
 unlog <- function(l) {
@@ -257,8 +283,9 @@ llambdas <- function(alpha, beta, gamma, mu) {
     for (i in 1:n) for (j in 1:n) {
         if (i==j) next;
 
-        loglambdas[i, j, 1] = alpha[i] - beta[j] + gamma[i] + mu[i]
-        loglambdas[i, j, 2] = alpha[j] - beta[i] - gamma[i] + mu[i]
+        # gamma[i] + mu[i]
+        loglambdas[i, j, 1] = alpha[i] - beta[j] + gamma + mu
+        loglambdas[i, j, 2] = alpha[j] - beta[i] - gamma + mu
     }
 
     return(loglambdas)
@@ -444,6 +471,46 @@ calc_VAR_points <- function(A, gamma, mu, stats) {
     }
 
     points
+}
+
+#' @export
+calc_match_lambda <- function(B, gamma, mu, theta, match_stats, times, match_id) {
+    match <- match_stats[match_id, T, T]
+
+    home <- match[1, T]
+    away <- match[2, T]
+
+    E_B <- function(team) {
+        # m-1, r(m-1)
+        # +1 FIX INDEX
+        team_prev_match <- team[2] + 1
+        team_prev_role <- team[3] + 1
+
+        if (team_prev_match == 0 || team_prev_role == 0)
+            return(c(0, 0))
+
+        # delta t
+        team_dt <- as.numeric(times[match_id] - times[team_prev_match])
+
+        # B(m-1)
+        team_prev_B <- B[team_prev_match, team_prev_role, T]
+
+        # E(B(m))
+        team_B <- expm(-theta * team_dt) %*% team_prev_B
+
+        return(team_B)
+    }
+
+    # E(B(m))
+    home_B <- E_B(home)
+    away_B <- E_B(away)
+
+    # E(lambda(t))
+    # mu/gamma are inflated scalars
+    home_lambda <- exp(home_B[1] - away_B[2] + mu[1] + gamma[1])
+    away_lambda <- exp(away_B[1] - home_B[2] + mu[1] - gamma[1])
+
+    return(cbind(home_lambda, away_lambda))
 }
 
 

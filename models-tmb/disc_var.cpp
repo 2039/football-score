@@ -1,5 +1,5 @@
 #include <TMB.hpp>
-#include "VAR.cpp"
+#include "DVAR.cpp"
 
 // https://kaskr.github.io/adcomp/structarray.html#a73c905d02300879a7c8ed576f2c1d84f
 
@@ -35,9 +35,11 @@ Type objective_function<Type>::operator() ()
 
   // We construct Sigma
   matrix<Type> Sigma_w = covariance(theta, sds);
+  ADREPORT(Sigma_w);
 
   // We construct Phi, the coefficient matrix of the VAR(1) series
   matrix<Type> Phi = VAR_coeff(eigtheta, eiglambda);
+  ADREPORT(Phi);
 
   // We construct the stationary covariance
   matrix<Type> Gamma0 = VAR_covariance(Phi, Sigma_w);
@@ -72,19 +74,17 @@ Type objective_function<Type>::operator() ()
 
   /* VAR(1) initialization error */
   for (int t=0; t < teams; t++) {
-    // No array.row() method so we transpose to access inner dimension
-    vector<Type> x0 = A.transpose().col(0).col(t);
+    vector<Type> x0 = A.row(0).row(t);
 
     nll += density::MVNORM(Gamma0)(x0);
   }
 
   /* VAR(1) noise error */
   for (int t=0; t < teams; t++) for (int r=1; r < rounds; r++) {
-    // No array.row() method so we transpose to access inner dimension
-    vector<Type> xp = A.transpose().col(r-1).col(t);
-    vector<Type> xn = A.transpose().col(r).col(t);
+    vector<Type> xp = A.row(r-1).row(t);
+    vector<Type> xn = A.row(r).row(t);
 
-    vector<Type> w = xn - xp;
+    vector<Type> w = xn - Phi * xp;
 
     nll += density::MVNORM(Sigma_w)(w);
   }

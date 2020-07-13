@@ -2,6 +2,7 @@ exports <- c(
     "n", "teams", "m", "matches", "r", "rounds",
     "team_indexes", "match_indexes", "score_indexes",
     "time_diffs",
+    "match_stats", "time",
     "advantage",
     "stats", "ztats",
     "mu",
@@ -90,6 +91,67 @@ away_round <- team_rounds(team_away)
 
 time_diffs <- team_time_diffs()
 
+PR <- function(x) {
+    print(x)
+    return(x)
+}
+
+prev_match <- function(team, index=1)
+    # index i corresponds to to the match-id of the i-1th match
+    # [-i] is everything except element at index i
+    c(-1, team_round(team)[-rounds]-1+index)
+
+curr_role <- function(team)
+    # index i is 0 if the match was home, 1 if the match was away for the team
+    as.integer(team_round(team) %in% team_away(team))
+
+prev_role <- function(team)
+    c(-1, curr_role(team)[-rounds])
+
+curr_score <- function(team)
+    cbind(home_score, away_score)[team_index(team)]
+
+team_index <- function(team)
+    cbind(team_round(team), curr_role(team)+1)
+
+construct_stats <- function(...) {
+    s <- array(NA, dim=c(matches, 2, 3))
+
+
+    for (team in 1:teams) {
+        # clean
+        indexes <- as.matrix(merge(team_index(team), 1:3))
+        rows <- cbind(curr_score(team), prev_match(team, ...), prev_role(team))
+
+        s[indexes] <- rows
+
+
+        # with mx2 indexes; only for selection, not assignment
+        # print(apply(s, 3, `[`, indexes))
+
+        # this is ugly
+        # indexes <- team_index(team)
+        # rows <- cbind(curr_score(team), prev_match(team), prev_role(team))
+        # for (i in 1:nrow(indexes)) for (j in 1:3)
+        #     s[indexes[i,1], indexes[i,2], j] <- rows[i, j]
+
+        # this is also ugly
+        # indexes <- cbind(team_index(team)[rep(1:rounds, times=3),], rep(1:3, each=rounds))
+
+
+        # failed attempts
+        #print(indexes)
+        #print(merge(team_index(team), 1:3))
+        #print(array(s[indexes], dim=c(rounds, 3)))
+        #print(apply(s, 3, `[`, team_index(team)))
+    }
+
+    return(s)
+}
+
+
+match_stats <- construct_stats(index=0)
+
 
 advantage <- function(indexes) {
     #' Adds advantage column to indexes,
@@ -101,6 +163,7 @@ advantage <- function(indexes) {
     exposed <- c("home_team", "away_team", "home_round", "away_round")
     unpack(indexes, exposed, environment())
 
+    # this doesn't flip home/away team, but would be nice:
     # print(merge(indexes, c(1, -1)))
 
     data.frame(
