@@ -226,7 +226,7 @@ average_oco <- function(mu, gamma, alpha, beta) {
 
     # compute lambda-average in everyone-against-everyone matches
     avg_lambdas <- sapply(1:n, function(i)
-        exp(mu + alpha[i])*cosh(gamma)*(beta_neg_exp_sum - exp(-beta[i]))/(n-1)
+        exp(mu[i] + alpha[i])*cosh(gamma[i])*(beta_neg_exp_sum - exp(-beta[i]))/(n-1)
     )
 
     return(avg_lambdas)
@@ -265,9 +265,9 @@ simulate_avg_scores <- function(k) {
 # plotting
 
 # "Simulating VAR(1) series"
-k <- 10000
+k <- 1000
 points <- sapply(1:k, function(...) simulate_points(
-    data::team_indexes,
+    circle_round_robin_indexes(16), #data::team_indexes,
     Phi,
     Sigma_w,
     Gamma0
@@ -300,7 +300,7 @@ for (t in 1:teams) {
     hist(points[t, T], breaks=40, main=data::team$name[t], xlab="Points", col="orange", lty="blank")
     #abline(v=mean(points[t, T]), col=color[t], lwd=2)
     abline(v=true_points[t], col="dodgerblue", lwd=3)
-    abline(v=realization[t], col="black", lty="dashed", lwd=3)
+    abline(v=realization[t], col="black", lty="dotted", lwd=3)
 }
 
 dev.off()

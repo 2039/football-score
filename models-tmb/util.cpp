@@ -1,6 +1,8 @@
 template <class T>
 matrix<T> I(int n) { matrix<T> I(n, n); I.setIdentity(); return I; }
 
+template <class T>
+matrix<T> Z(int n) { matrix<T> Z(n, n); Z.setZero(); return Z; }
 
 template <class T>
 matrix<T> covariance(vector<T> theta, vector<T> sds) {

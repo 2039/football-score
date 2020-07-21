@@ -1,5 +1,5 @@
 #include <TMB.hpp>
-#include "CVAR.cpp"
+#include "DVAR.cpp"
 
 // https://kaskr.github.io/adcomp/structarray.html#a73c905d02300879a7c8ed576f2c1d84f
 
@@ -9,7 +9,6 @@ Type objective_function<Type>::operator() ()
 {
   /* Data section */
   DATA_IMATRIX(stats);
-  DATA_MATRIX(time_diffs);
 
   /* Random effect section */
   // A(round, team, strength)
@@ -19,32 +18,38 @@ Type objective_function<Type>::operator() ()
   PARAMETER(gamma);
   PARAMETER(mu);
 
-  PARAMETER_VECTOR(L_theta);   // rho = rho(theta)
-  PARAMETER_VECTOR(log_sds_theta); // sqrt-variance diagonal
+  // TODO: figure out how to properly make a cov-matrix
+  PARAMETER_VECTOR(theta);   // rho = rho(theta)
+  PARAMETER_VECTOR(log_sds); // sqrt-variance diagonal
 
   // Parametrization based off https://github.com/jtufto/tmb-var1/
-  PARAMETER_VECTOR(L_D);
-  PARAMETER_VECTOR(log_sds_D); // Phi = Phi(eigentheta, eigenlambda)
+  // PARAMETER_VECTOR(eigtheta);
+  // PARAMETER_VECTOR(logit_eiglambda); // Phi = Phi(eigentheta, eigenlambda)
 
   /* Variables (un-parameterized) */
-  vector<Type> sds_theta = exp(log_sds_theta);
-  vector<Type> sds_D = exp(log_sds_D);
+  vector<Type> sds = exp(log_sds);
 
+  // vector<Type> eiglambda = 2/(1+exp(-logit_eiglambda))-1;
 
   /* Procedure section */
 
-  matrix<Type> theta = covariance(L_theta, sds_theta);
-  ADREPORT(theta);
+  // We construct Sigma
+  matrix<Type> Sigma_w = covariance(theta, sds);
+  ADREPORT(Sigma_w);
 
-  matrix<Type> D = covariance(L_D, sds_D);
-  ADREPORT(D);
+  // // We construct Phi, the coefficient matrix of the VAR(1) series
+  // // matrix<Type> Phi = VAR_coeff(eigtheta, eiglambda);
+  // matrix<Type> Phi = Z<Type>(2);
+  // ADREPORT(Phi);
 
-  // continuous VAR class
-  CVAR<Type> cvar {theta, D};
+  // // We construct the stationary covariance
+  // matrix<Type> Gamma0 = VAR_covariance(Phi, Sigma_w);
+  // ADREPORT(Gamma0);
 
 
   // Initialize value for negative-log-likelihood (nll)
   Type nll = 0;
+
 
   /* poisson(lambda) error */
   for (int s=0; s < stats.rows(); s++) {
@@ -69,28 +74,11 @@ Type objective_function<Type>::operator() ()
   int rounds = A.rows();
   int teams = A.col(0).cols();
 
-  /* VAR(1) initialization error */
-  matrix<Type> Gamma = cvar.Gamma();
-
-  for (int t=0; t < teams; t++) {
-    // No array.row() method so we transpose to access inner dimension
-    vector<Type> x0 = A.row(0).row(t);
-
-    nll += density::MVNORM(Gamma)(x0);
-  }
-
-
   /* VAR(1) noise error */
-  for (int t=0; t < teams; t++) for (int r=1; r < rounds; r++) {
-    // No array.row() method so we transpose to access inner dimension
-    vector<Type> xp = A.row(r-1).row(t);
-    vector<Type> xn = A.row(r).row(t);
-    Type dt = time_diffs(r, t);
+  for (int t=0; t < teams; t++) for (int r=0; r < rounds; r++) {
+    vector<Type> x = A.row(r).row(t);
 
-    vector<Type> mu = cvar.mu(xp, dt);
-    matrix<Type> Gamma = cvar.Gamma(dt);
-
-    nll += density::MVNORM(Gamma)(xn - mu);
+    nll += density::MVNORM(Sigma_w)(x);
   }
 
   return nll;

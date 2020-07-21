@@ -7,8 +7,8 @@ exports <- c("options", "save", "load")
 # [o] Include toggle for saving as json or RDS
 
 options_list = list(
-    optparse::make_option(c("-s", "--save"), action="store", default=NULL,
-    type="character", help="store the parameters to the given filename")
+    optparse::make_option(c("-s", "--save"), action="store_true", default=FALSE,
+    type="logical", help="store the parameters to the given filename")
 ,   optparse::make_option(c("-l", "--load"), action="store", default=NULL,
     type="character", help="load the parameters from the given filename")
 ,   optparse::make_option(c("-m", "--model"), action="store", default=NULL,

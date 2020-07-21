@@ -39,8 +39,8 @@ parameters <- list(
     alpha = rep(0, teams),
     beta  = rep(0, teams),
     #AB    = matrix(0.1, 2, n),
-    gamma = 1,
-    mu    = mu,
+    gamma = array(0, dim=teams),
+    mu    = array(log(mu), dim=teams),
     Sigma = Sigma
 )
 

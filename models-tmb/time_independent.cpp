@@ -1,4 +1,5 @@
 #include <TMB.hpp>
+#include "util.cpp"
 
 template<class Type>
 Type objective_function<Type>::operator() ()
@@ -23,7 +24,12 @@ Type objective_function<Type>::operator() ()
   vector<Type> sds = exp(log_sds);
 
   // Subclass of MVNORM_t
-  density::UNSTRUCTURED_CORR_t<Type> NEG_LOG_MVNORM_UNSCALED(theta);
+  // OLD: density::UNSTRUCTURED_CORR_t<Type> NEG_LOG_MVNORM_UNSCALED(theta);
+
+  // We construct Sigma
+  matrix<Type> Sigma_w = covariance(theta, sds);
+  ADREPORT(Sigma_w);
+
 
   int teams = alpha.size();
 
@@ -35,19 +41,20 @@ Type objective_function<Type>::operator() ()
       if (i == j) { continue; /* A team never matches with themselves */ }
 
       // llambda == log-lambda
-      Type llambda_home = alpha(i) - beta(j) + gamma + mu;
-      Type llambda_away = alpha(j) - beta(i) - gamma + mu;
+      Type lambda_home = exp(alpha(i) - beta(j) + gamma + mu);
+      Type lambda_away = exp(alpha(j) - beta(i) - gamma + mu);
 
       // dpois(x: float, lambda: float, log: bool) -> float
-      nll += -dpois(HOME(i, j), exp(llambda_home), true);
-      nll += -dpois(AWAY(i, j), exp(llambda_away), true);
+      nll += -dpois(HOME(i, j), lambda_home, true);
+      nll += -dpois(AWAY(i, j), lambda_away, true);
   }
 
   // log-likelihood of latent variables
   for (int i=0; i < teams; i++) {
     vector<Type> x(2); x << alpha(i), beta(i);
 
-    nll += density::VECSCALE(NEG_LOG_MVNORM_UNSCALED, sds)(x);
+    nll += density::MVNORM(Sigma_w)(x);
+    // OLD: nll += density::VECSCALE(NEG_LOG_MVNORM_UNSCALED, sds)(x);
   }
 
   // Accessible by sdreport(model)$value, sdreport(model)$sd

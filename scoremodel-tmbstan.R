@@ -34,8 +34,8 @@ data <- list(
 parameters <- list(
     alpha = rep(0, teams),
     beta  = rep(0, teams),
-    gamma = 1,
-    mu    = log(mu),
+    gamma = array(1, dim=teams),
+    mu    = array(log(mu), dim=teams),
     theta = theta,
     log_sds = log(sds)
 )

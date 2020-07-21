@@ -16,8 +16,8 @@ parameters {
     vector[N] alpha;
     vector[N] beta;
 
-    real<lower=0> gamma;
-    real<lower=0> mu;
+    vector[N] gamma;
+    vector[N] mu;
 
     cov_matrix[2] Sigma;
 }
@@ -31,8 +31,8 @@ transformed parameters {
 
         //llambda_home[i, j] = AB[1, i] - AB[2, j] + gamma + mu;
         //llambda_away[i, j] = AB[1, j] - AB[2, i] - gamma + mu;
-        llambda_home[i, j] = alpha[i] - beta[j] + gamma + mu;
-        llambda_away[i, j] = alpha[j] - beta[i] - gamma + mu;
+        llambda_home[i, j] = alpha[i] - beta[j] + gamma[i] + mu[i];
+        llambda_away[i, j] = alpha[j] - beta[i] - gamma[i] + mu[i];
     }}
 }
 

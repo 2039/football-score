@@ -42,15 +42,20 @@ sds_D <- util::decompose_cov(D)$sds
 # Create datalist
 data <- list(
     stats = as.matrix(data::ztats),
-    time_diffs = data::time_diffs
+    time_diffs = data::time_diffs,
+    OFID = 2
 )
 
+# 54.70892945468376922236
+# 54.70896594066840634696
+# 54.70892945468376922236
+# ! invalid 53.95560949052593713304
 
 # Define variables & parameters
 parameters <- list(
     A     = A,
-    gamma = 0,
-    mu    = log(mu),
+    gamma = array(0, dim=1),
+    mu    = array(log(mu), dim=1),
     L_theta       = L_theta,
     log_sds_theta = log(sds_theta),
     L_D       = L_D,
@@ -62,7 +67,8 @@ parameters <- list(
 #######
 ### OBJECTIVE FUNCTION
 
-MODEL = "cvar_tmb"
+modelname <- options::options$model
+MODEL <- if(util::is.nonempty(modelname)) modelname else "cont_rw"
 
 # Compile and link the template
 # paste0 concatenates strings (without separator)
@@ -80,6 +86,8 @@ obj <- TMB::MakeADFun(data, parameters, random=c("A"), DLL=MODEL, silent=T)
 # nlm(obj$fn, obj$par), optim(obj$par, obj$fn, obj$gr)
 system.time(opt <- nlminb(obj$par, obj$fn, obj$gr))
 
+util::TMB_AIC(opt, n=480)
+util::TMB_AIC(opt)
 
 
 #######
@@ -88,12 +96,18 @@ system.time(opt <- nlminb(obj$par, obj$fn, obj$gr))
 # https://www.rdocumentation.org/packages/TMB/versions/1.7.16/topics/sdreport
 report <-TMB::sdreport(obj)
 
+
+if (options::options$save) {
+    result <- util::vecgroupby(summary(report))
+    format <- options::options$format
+    filename <- filename=paste0(MODEL, "_params")
+
+    options::save(result, format=format, filename=filename)
+}
+
+
 result <- util::unlog(obj$env$parList())
 result <- util::vectorize_values(result, c("mu", "gamma"), teams)
-
-
-# save to file if CLI arguments are used [--save name]
-if (util::is.nonempty(options::options$save)) options::save(result)
 
 
 # Gets the result values matching the function signature + stats
@@ -106,3 +120,5 @@ points <- do.call(util::calc_VAR_points, values)
 
 # print rankings
 print(util::rankings(points, data::team$name))
+
+alarm()

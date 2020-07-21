@@ -41,8 +41,8 @@ data <- list(
 # Define variables & parameters
 parameters <- list(
     A     = A,
-    gamma = 0,
-    mu    = log(mu),
+    gamma = array(0, dim=1),
+    mu    = array(log(mu), dim=1),
     theta = theta,
     log_sds = log(sds),
     eigtheta = c(0, pi/2),
@@ -54,7 +54,8 @@ parameters <- list(
 #######
 ### OBJECTIVE FUNCTION
 
-MODEL = "var_tmb"
+modelname <- options::options$model
+MODEL <- if(util::is.nonempty(modelname)) modelname else "disc_var"
 
 # Compile and link the template
 # paste0 concatenates strings (without separator)
@@ -72,6 +73,8 @@ obj <- TMB::MakeADFun(data, parameters, random=c("A"), DLL=MODEL, silent=T)
 # nlm(obj$fn, obj$par), optim(obj$par, obj$fn, obj$gr)
 system.time(opt <- nlminb(obj$par, obj$fn, obj$gr))
 
+util::TMB_AIC(opt, n=480)
+util::TMB_AIC(opt)
 
 
 #######
@@ -80,11 +83,23 @@ system.time(opt <- nlminb(obj$par, obj$fn, obj$gr))
 # https://www.rdocumentation.org/packages/TMB/versions/1.7.16/topics/sdreport
 report <-TMB::sdreport(obj)
 
+print(summary(report))
+
+
+if (options::options$save) {
+    result <- util::vecgroupby(summary(report))
+    format <- options::options$format
+    filename <- filename=paste0(MODEL, "_params")
+
+    options::save(result, format=format, filename=filename)
+}
+
+
+
 result <- util::unlog(obj$env$parList())
+result <- util::vectorize_values(result, c("mu", "gamma"), teams)
 
-# save to file if CLI arguments are used [--save name]
-if (util::is.nonempty(options::options$save)) options::save(result)
-
+# Sigma <- util::recompose_cov(result$theta, result$sds)
 
 # Gets the result values matching the function signature + stats
 values <- result[intersect(names(result), formalArgs(util::calc_VAR_ratings))]
@@ -96,3 +111,5 @@ points <- do.call(util::calc_VAR_points, values)
 
 # print rankings
 print(util::rankings(points, data::team$name))
+
+alarm()

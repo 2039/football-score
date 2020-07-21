@@ -47,7 +47,7 @@ Type objective_function<Type>::operator() ()
   /* poisson(lambda) error */
   for (int match=0; match < matches.rows(); match++) {
     // No array.row() method so we transpose to access inner dimension
-    //vector<int> match_stats = matches.transpose().col(match);
+    //vector<int> match_stats = matches.row(match);
 
     ////
     // Variables
@@ -72,14 +72,14 @@ Type objective_function<Type>::operator() ()
 
       // This should be allowed as long as variable`matches` is a DATA_* type
       if (prev_match == -1) /* => team's match */ {
-        vector<Type> x0 = B.transpose().col(match).col(role);
+        vector<Type> x0 = B.row(match).row(role);
         matrix<Type> Gamma = cvar.Gamma();
 
         nll += density::MVNORM(Gamma)(x0);
 
       } else /* => team has played a previous round */ {
-        vector<Type> xp = B.transpose().col(prev_match).col(prev_role);
-        vector<Type> xn = B.transpose().col(match).col(role);
+        vector<Type> xp = B.row(prev_match).row(prev_role);
+        vector<Type> xn = B.row(match).row(role);
 
         Type dt = times(match) - times(prev_match);
 

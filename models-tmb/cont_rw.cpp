@@ -19,28 +19,30 @@ Type objective_function<Type>::operator() ()
   PARAMETER(gamma);
   PARAMETER(mu);
 
-  PARAMETER_VECTOR(L_theta);   // rho = rho(theta)
-  PARAMETER_VECTOR(log_sds_theta); // sqrt-variance diagonal
+  // PARAMETER_VECTOR(L_theta);   // rho = rho(theta)
+  // PARAMETER_VECTOR(log_sds_theta); // sqrt-variance diagonal
 
   // Parametrization based off https://github.com/jtufto/tmb-var1/
   PARAMETER_VECTOR(L_D);
   PARAMETER_VECTOR(log_sds_D); // Phi = Phi(eigentheta, eigenlambda)
 
   /* Variables (un-parameterized) */
-  vector<Type> sds_theta = exp(log_sds_theta);
+  // vector<Type> sds_theta = exp(log_sds_theta);
   vector<Type> sds_D = exp(log_sds_D);
 
 
   /* Procedure section */
 
-  matrix<Type> theta = covariance(L_theta, sds_theta);
-  ADREPORT(theta);
+  // matrix<Type> theta = covariance(L_theta, sds_theta);
+  // ADREPORT(theta);
+  // matrix<Type> theta = Z<Type>(2); // Zero matrix
 
-  matrix<Type> D = covariance(L_D, sds_D);
-  ADREPORT(D);
+  matrix<Type> Sigma_w = covariance(L_D, sds_D);
+  ADREPORT(Sigma_w);
+  // matrix<Type> D = I<Type>(2); // Zero matrix
 
   // continuous VAR class
-  CVAR<Type> cvar {theta, D};
+  // CVAR<Type> cvar {theta, D};
 
 
   // Initialize value for negative-log-likelihood (nll)
@@ -70,13 +72,13 @@ Type objective_function<Type>::operator() ()
   int teams = A.col(0).cols();
 
   /* VAR(1) initialization error */
-  matrix<Type> Gamma = cvar.Gamma();
+  // matrix<Type> Gamma0 = cvar.Gamma();
 
   for (int t=0; t < teams; t++) {
     // No array.row() method so we transpose to access inner dimension
     vector<Type> x0 = A.row(0).row(t);
 
-    nll += density::MVNORM(Gamma)(x0);
+    nll += density::MVNORM(Sigma_w)(x0);
   }
 
 
@@ -87,10 +89,9 @@ Type objective_function<Type>::operator() ()
     vector<Type> xn = A.row(r).row(t);
     Type dt = time_diffs(r, t);
 
-    vector<Type> mu = cvar.mu(xp, dt);
-    matrix<Type> Gamma = cvar.Gamma(dt);
+    matrix<Type> Sigma_wt = dt * Sigma_w;
 
-    nll += density::MVNORM(Gamma)(xn - mu);
+    nll += density::MVNORM(Sigma_wt)(xn - xp);
   }
 
   return nll;
